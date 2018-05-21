@@ -7,31 +7,28 @@
 //
 
 import UIKit
+import CoreData
 
 class TodoeyTableViewController: UITableViewController {
     
     var itemArray = [Item]()
+    var selectedCategory:Category?{
+        didSet{
+            loadItems()
+            
+        }
+    }
     
     let plistFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("items.plist")
-    
+    let persistentContext = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+
    
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        let newItem = Item()
-        newItem.title = "Find shoes"
-        itemArray.append(newItem)
         
-        let newItem2 = Item()
-        newItem2.title = "buy milk"
-        itemArray.append(newItem2)
-        
-        let newItem3 = Item()
-        newItem3.title = "Buy Groceries"
-        itemArray.append(newItem3)
-        
-        loadItems()
-        
+       // print(plistFilePath)
+       
         
         
     }
@@ -72,9 +69,10 @@ class TodoeyTableViewController: UITableViewController {
         
         let alerAction = UIAlertAction(title: "Add Item", style: .default) { (action) in
             
-            let newItem = Item()
+            let newItem = Item(context: self.persistentContext)
             newItem.title = textField.text!
-            self.itemArray.append(newItem)
+            newItem.done = false
+            newItem.parentCategory = self.selectedCategory
             self.saveItems()
             
         }
@@ -87,29 +85,59 @@ class TodoeyTableViewController: UITableViewController {
     }
     
     func saveItems(){
-        let encoder = PropertyListEncoder()
+       
         do{
-            let data = try encoder.encode(itemArray)
-            try data.write(to: plistFilePath!)
+          try persistentContext.save()
         }catch{
             print("Error while encoding item array \(error)")
         }
-         self.tableView.reloadData()
-    }
-    
-    func loadItems(){
-        
-        do{
-            if let data = try? Data(contentsOf: plistFilePath!){
-             let decoder = PropertyListDecoder()
-               itemArray = try decoder.decode([Item].self, from: data)
-            }
-        }catch{
-            print("error while decoding data \(error)")
+        DispatchQueue.main.async {
+            self.tableView.reloadData()
         }
         
-        self.tableView.reloadData()
     }
     
+    func loadItems(with request:NSFetchRequest<Item> = Item.fetchRequest(), predicate:NSPredicate? = nil){
+        
+        let categoryPredicate = NSPredicate(format: "parentCategory.name MATCHES %@", (selectedCategory?.name!)!)
+        
+       if let additionalPredicate = predicate{
+            
+           request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [additionalPredicate,categoryPredicate])
+        }else{
+            request.predicate = categoryPredicate
+        }
+        
+        do{
+        itemArray = try persistentContext.fetch(request)
+        }catch{
+            print("Error fetching data from context \(error)")
+        }
+        tableView.reloadData()
+    }
+
+}
+
+//MARK:- search bar methods
+
+extension TodoeyTableViewController:UISearchBarDelegate{
+    
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        let request:NSFetchRequest<Item> = Item.fetchRequest()
+        let predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+        loadItems(with: request,predicate: predicate)
+        
+    }
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        if searchBar.text?.count == 0{
+            loadItems()
+            DispatchQueue.main.async {
+                searchBar.resignFirstResponder()
+            }
+            
+        }
+    }
+   
 }
 
