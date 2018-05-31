@@ -12,6 +12,9 @@ import ChameleonFramework
 
 class TodoeyTableViewController: SwipeTableCellViewController{
     
+    
+    @IBOutlet weak var searchBar: UISearchBar!
+    
     var todoeyItems: Results<Item>?
     let realm = try! Realm()
     var selectedCategory:Category?{
@@ -31,19 +34,40 @@ class TodoeyTableViewController: SwipeTableCellViewController{
     }
     
     override func viewWillAppear(_ animated: Bool) {
-        if let coulourHex = selectedCategory?.colour{
-            guard let navBar = navigationController?.navigationBar else {
-                fatalError("Navigation controller does not exist")}
-            
-            navigationController?.navigationBar.barTintColor = UIColor(hexString: coulourHex)
-        }
+        
+         title = selectedCategory?.name
+        
+        guard let colourHex = selectedCategory?.colour else{fatalError()}
+        updateNavigationController(withHex: colourHex)
+        
        
+            
+    }
+    override func viewWillDisappear(_ animated: Bool) {
+        
+        updateNavigationController(withHex: "1D9BF6")
         
     }
 
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
+    }
+    //MARK:- function to update navigation style
+    
+    func updateNavigationController(withHex colourHexCode:String){
+        
+        guard let navBar = navigationController?.navigationBar else {
+            fatalError("Navigation controller does not exist")}
+        
+        guard let navBarColour = UIColor(hexString: colourHexCode) else{fatalError()}
+        
+        navBar.barTintColor = navBarColour
+        navBar.tintColor = UIColor(contrastingBlackOrWhiteColorOn: navBarColour, isFlat: true)
+        
+        navBar.largeTitleTextAttributes = [NSAttributedStringKey.foregroundColor: UIColor(contrastingBlackOrWhiteColorOn: navBarColour, isFlat: true)]
+        searchBar.barTintColor = navBarColour
+        
     }
 
     //MARK - tableview DataSource methods
